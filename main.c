@@ -25,20 +25,12 @@ double x[4] = {1, 2, 3, 4};
 double y[10] = {1, 0, 2, 0, 3, 0, 4, 0, 5, 0};
 
 /*
-double **generate_general_matrix(int n, int m)
+double **get_random_values(int n, int m, double ** matrix)
 {
     int i, j;
     unsigned int seed = (unsigned int) time(NULL);
     srand(seed);
 
-    double **A = malloc(n * sizeof(double *));
-    if (!A)
-        perror("Error while allocating A\n");
-    for (i = 0; i < n; i++) {
-        A[i] = malloc(m * sizeof(double));
-        if (!A[i])
-            perror("Error while allocating array in A\n");
-    }
 
     for (i = 0; i < n; i++)
         for (j = 0; j < m; j++)
@@ -48,24 +40,23 @@ double **generate_general_matrix(int n, int m)
     return NULL;
 }*/
 
-void free_general_matrix(int n, int m, double **A)
+void free_general_matrix(int n, int m, double **a)
 {
     int i = 0;
     for (i = 0; i < n; i++)
-        free(A[i]);
-    free(A);
+        free(a[i]);
+    free(a);
 }
 
-/*
 void display_matrix(int n, int m, double **a)
 {
     int i, j;
     for (i = 0; i < n; i++) {
         for (j = 0; j < m; j++)
-            printf("%lf ", general_A[i][j]);
+            printf("%lf ", a[i][j]);
         printf("\n");
     }
-}*/
+}
 
 
 
@@ -152,11 +143,22 @@ void dgbmv(int m, int n, int kl, int ku, double alpha, double **Ax, int lda,
     return;
 }
 
+
+
 int main(void)
 {
-    int n, m;
+    int n = 5, m = 4;
     //generate_general_matrix(5, 4);
     //display_matrix(5, 4, NULL);
+
+    double **a = malloc(n * sizeof(double *));
+    if (!a)
+        perror("Error while allocating a\n");
+    for (i = 0; i < n; i++) {
+        a[i] = malloc(m * sizeof(double));
+        if (!a[i])
+            perror("Error while allocating array in a\n");
+    }
 
     dgbmv(5, 4, 3, 2, 2, NULL, 8, NULL, 1, 10, NULL, 2);
 
