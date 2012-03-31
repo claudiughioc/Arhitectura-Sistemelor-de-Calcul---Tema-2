@@ -1,72 +1,57 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
+#include <cblas.h>
 
 #define RANGE       100
 #define X(I)        x[(I)-1]
 #define Y(I)        y[(I)-1]
 #define A(I, J)     bA[(I) - 1 + ((J) - 1) * lda]
-#define N           5
-#define M           4
 #define MIN(X,Y) ((X) < (Y) ?  (X) : (Y))
 #define MAX(X,Y) ((X) > (Y) ?  (X) : (Y))
 
 double nA[5][4] = { {1, 1, 1, 0},
-        {2, 2, 2, 2},
-        {3, 3, 3, 3},
-        {4, 4, 4, 4},
-        {0, 5, 5, 5}};
-double bA[32] = {0, 0, 1, 2, 3, 4, 0, 0,
-                0, 1, 2, 3, 4, 5, 0, 0,
-                1, 2, 3, 4, 5, 0, 0, 0,
-                2, 3, 4, 5, 0, 0, 0, 0};
-double x[4] = {1, 2, 3, 4};
-double y[10] = {1, 0, 2, 0, 3, 0, 4, 0, 5, 0};
+    {2, 2, 2, 2},
+    {3, 3, 3, 3},
+    {4, 4, 4, 4},
+    {0, 5, 5, 5}};
 
-double **get_random_values(int n, int m, double **matrix)
+
+void get_random_values(double *matrix, long size)
 {
-    int i, j;
+    int i;
     unsigned int seed = (unsigned int) time(NULL);
     srand(seed);
 
-    for (i = 0; i < n; i++)
-        for (j = 0; j < m; j++)
-            matrix[i][j] = ((double) rand() / (double) RAND_MAX) * RANGE;
+    for (i = 0; i < size; i++)
+        matrix[i] = ((double) rand() / (double) RAND_MAX) * RANGE;
 
-    return matrix;
+    return;
 }
 
-void free_general_matrix(int n, int m, double **a)
+void display_matrix(double *matrix, long size)
 {
-    int i = 0;
-    for (i = 0; i < n; i++)
-        free(a[i]);
-    free(a);
-}
-
-void display_matrix(int n, int m, double **a)
-{
-    int i, j;
+    int i;
     printf("\nContinut matrice : \n");
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < m; j++)
-            printf("%lf ", a[i][j]);
-        printf("\n");
+    for (i = 0; i < size; i++) {
+        printf("%lf ", matrix[i]);
     }
+    printf("\n");
 }
 
 
-void dgbmv(int m, int n, int kl, int ku, double alpha, double *Ax, int lda,
-    double *xx, int incx, double beta, double *yy, int incy)
+void dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int lda,
+        double *x, int incx, double beta, double *y, int incy)
 {
-    int lenx, leny, kx, ky, iy, ix, kup1, i, jx, j, k;
+    int lenx, leny, kx, ky, iy,  kup1, i, jx, j, k;
     double temp;
     /* Sanity check */
     if ((m <= 0) || (n <= 0) || (kl < 0) || (ku < 0) || (lda <= 0) ||
-        (lda < (kl + ku + 1)) || (incx == 0) || (incy == 0) ||
-        ((alpha == 0) && (beta == 1)))
+            (lda < (kl + ku + 1)) || (incx == 0) || (incy == 0) ||
+            ((alpha == 0) && (beta == 1)))
         return;
-    
+
     lenx = n;
     leny = m;
 
@@ -108,6 +93,7 @@ void dgbmv(int m, int n, int kl, int ku, double alpha, double *Ax, int lda,
 
     kup1 = ku + 1;
     jx = kx;
+
 
     if (incy == 1) {
         for (j = 1; j <= n; ++j) {
@@ -170,35 +156,72 @@ double **to_band_storage(int n, int m, int lda, int kl, int ku, double **a)
 
 int main(void)
 {
-    int n = 5, m = 4, i, lda = 8;
-    int kl = 4, ku = 3;
+    /*
+    int m = 5, n = 4, i, lda = 8, incx = 1, incy = 2;
+    int kl = 3, ku = 2, alpha = 2, beta = 10;
+    double bA[32] = {0, 0, 1, 2, 3, 4, 0, 0,
+        0, 1, 2, 3, 4, 5, 0, 0,
+        1, 2, 3, 4, 5, 0, 0, 0,
+        2, 3, 4, 5, 0, 0, 0, 0};
+    double x[4] = {1, 2, 3, 4};
+    double y[10] = {1, 0, 2, 0, 3, 0, 4, 0, 5, 0};
+    */
 
-    double **a = malloc(n * sizeof(double *));
-    double **b;
-
-    if (!a)
-        perror("Error while allocating a\n");
-    for (i = 0; i < n; i++) {
-        a[i] = malloc(m * sizeof(double));
-        if (!a[i])
-            perror("Error while allocating array in a\n");
-    }
-
-    a = get_random_values(n, m, a);
-    display_matrix(n, m, a);
-
-    b = to_band_storage(n, m, lda, kl, ku, a);
-    display_matrix(lda, m, b);
+    long m = 10000000, n = 10000000, i, lda = 3, incx = 1, incy = 2;
+    long kl = 0, ku = 0, alpha = 2, beta = 10i, diff_sec, diff_usec;
+    struct timeval tvstart, tvstop;
+    double *a = malloc(lda * n * sizeof(double));
+    double *x = malloc(n * incx * sizeof(double));
+    double *y = malloc(m * incy * sizeof(double));
     
 
-    dgbmv(5, 4, 3, 2, 2, NULL, 8, NULL, 1, 10, NULL, 2);
+    get_random_values(a, lda * n);
+    get_random_values(x, n * incx);
+    get_random_values(y, m * incy);
 
-    /* Afisare vector final y */
+    //display_matrix(a, lda * n);
+
+
+    printf("----Start attempt for my function----\n");
+    gettimeofday(&tvstart, NULL);
+    dgbmv(m, n, kl, ku, alpha, a, lda, x, incx, beta, y, incy);
+    gettimeofday(&tvstop, NULL);
+
+    diff_sec = tvstop.tv_sec - tvstart.tv_sec;
+    diff_usec;
+    if (diff_sec > 0)
+        diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
+    else
+        diff_usec = tvstop.tv_usec - tvstart.tv_usec;
+
+    printf("Diferenta in secunde %ld\n", diff_sec);
+    printf("Diferenta in usecunde %ld\n", diff_usec);
+    printf("Durata in milisecunde %ld\n", diff_sec * 1000 + diff_usec / 1000);
+    printf("----end of attempt, start BLAS----\n");
+
+
+
+    gettimeofday(&tvstart, NULL);
+    cblas_dgbmv(102, 111, m, n, kl, ku, alpha, bA, lda, x, incx, beta, y, incy);
+    gettimeofday(&tvstop, NULL);
+    diff_sec = tvstop.tv_sec - tvstart.tv_sec;
+    diff_usec;
+    if (diff_sec > 0)
+        diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
+    else
+        diff_usec = tvstop.tv_usec - tvstart.tv_usec;
+    printf("Diferenta in secunde %ld\n", diff_sec);
+    printf("Diferenta in usecunde %ld\n", diff_usec);
+    printf("Durata in milisecunde %ld\n", diff_sec * 1000 + diff_usec / 1000);
+    printf("----Apel BLAS dgbmv----\n");
+
+
+    /* Afisare vector final y 
     printf("\nContinut vector y:\n");
-    for (i = 0; i < 10; i++)
+    for (i = 0; i < incy * m; i++)
         printf("%lf, ", y[i]);
     printf("\n");
-
-    free_general_matrix(n, m, a);
+    */
+    free(a);
     return 0;
 }
