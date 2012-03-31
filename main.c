@@ -41,6 +41,104 @@ void display_matrix(double *matrix, long size)
 }
 
 
+void improved_dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int lda,
+        double *x, int incx, double beta, double *y, int incy)
+{
+    int lenx, leny, kx, ky, iy,  kup1, i, jx, j, k;
+    double temp;
+    /* Sanity check */
+    if ((m <= 0) || (n <= 0) || (kl < 0) || (ku < 0) || (lda <= 0) ||
+            (lda < (kl + ku + 1)) || (incx == 0) || (incy == 0) ||
+            ((alpha == 0) && (beta == 1)))
+        return;
+
+    lenx = n;
+    leny = m;
+
+    if (incx > 0)
+        kx = 1;
+    else
+        kx = 1 - (lenx - 1) * incx;
+
+    if (incy > 0)
+        ky = 1;
+    else
+        ky = 1 - (leny - 1) * incy;
+    
+    if (beta != 1) {
+        double *yp = NULL;
+        if (incy == 1) {
+            if (beta == 0) {
+                *yp = Y(1);
+                for (i = 1; i <= leny; i++) {
+                    *yp = 0;
+                    yp++;
+                }
+            } else {
+                *yp = Y(1);
+                for (i = 1; i <= leny; i++) {
+                    *yp = beta * *yp;
+                    yp++;
+                }
+            }
+        } else {
+            iy = ky;
+            if (beta == 0) {
+                *yp = Y(iy);
+                for (i = 1; i <= leny; i++) {
+                    *yp = 0;
+                    yp += incy;
+                }
+            } else {
+                *yp = Y(iy);
+                for (i = 1; i <= leny; i++) {
+                    *yp = beta * *yp;
+                    yp += incy;
+                }
+            }
+        }
+    }
+
+    if (alpha == 0)
+        return;
+
+    kup1 = ku + 1;
+    jx = kx;
+
+    double *xp = NULL;
+    if (incy == 1) {
+        *xp = X(jx);
+        for (j = 1; j <= n; ++j) {
+            if (*xp != 0) {
+                temp = alpha * *xp;
+                k = kup1 - j;
+                for (i = MAX(1, j - ku); i <= MIN(m, j + kl); ++i) {
+                    Y(i) += temp * A(k + i, j);
+                }
+            }
+            xp += incx;
+        }
+    } else {
+        *xp = X(jx);
+        for (j = 1; j <= n; ++j) {
+            if (*xp != 0) {
+                temp = alpha * *xp;
+                iy = ky;
+                k = kup1 - j;
+                for (i = MAX(1, j - ku); i <= MIN(m, j + kl); ++i) {
+                    Y(iy) += temp * A(k + i, j);
+                    iy += incy;
+                }
+            }
+            *xp += incx;
+            if (j > ku)
+                ky += incy;
+        }
+    }
+    return;
+}
+
+
 void dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int lda,
         double *x, int incx, double beta, double *y, int incy)
 {
@@ -125,33 +223,16 @@ void dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int lda,
     return;
 }
 
-
-double **to_band_storage(int n, int m, int lda, int kl, int ku, double **a)
-{
-    int u, v, i, j;
-    double **b = malloc(lda * sizeof(double *));
-    if (b == NULL)
-        return b;
-    for (i = 0; i < lda; i++) {
-        b[i] = malloc(m * sizeof(double));
-        if (b[i] == NULL) {
-            free(b);
-            return NULL;
-        }
+int check_equal(double *a, long size_a, double *b, long size_b) {
+    int ok = 0;
+    if (size_a != size_b)
+        return ok;
+    long i = 0;
+    for (i = 0; i < size_a; i++) {
+        if (a[i] != b[i])
+            return 0;
     }
-
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < m; j++) {
-            if (j >= MAX(0, i - kl) && j < MIN(n, i + kl)) {
-                u = i + ku - j;
-                v = j;
-                if ( u >= 0 && u < lda)
-                    b[u][v] = a[i][j];
-            }
-        }
-    }
-
-    return b;
+    return 1;
 }
 
 int main(void)
@@ -168,19 +249,19 @@ int main(void)
     */
 
     long m = 10000000, n = 10000000, i, lda = 3, incx = 1, incy = 2;
-    long kl = 0, ku = 0, alpha = 2, beta = 10i, diff_sec, diff_usec;
+    long kl = 0, ku = 0, alpha = 2, beta = 10, diff_sec, diff_usec;
     struct timeval tvstart, tvstop;
     double *a = malloc(lda * n * sizeof(double));
     double *x = malloc(n * incx * sizeof(double));
     double *y = malloc(m * incy * sizeof(double));
+    double *yb = malloc(m * incy * sizeof(double));
     
 
     get_random_values(a, lda * n);
     get_random_values(x, n * incx);
     get_random_values(y, m * incy);
-
-    //display_matrix(a, lda * n);
-
+    for (i = 0; i < m * incy; i++)
+        yb[i] = a[i];
 
     printf("----Start attempt for my function----\n");
     gettimeofday(&tvstart, NULL);
@@ -188,7 +269,6 @@ int main(void)
     gettimeofday(&tvstop, NULL);
 
     diff_sec = tvstop.tv_sec - tvstart.tv_sec;
-    diff_usec;
     if (diff_sec > 0)
         diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
     else
@@ -202,10 +282,9 @@ int main(void)
 
 
     gettimeofday(&tvstart, NULL);
-    cblas_dgbmv(102, 111, m, n, kl, ku, alpha, bA, lda, x, incx, beta, y, incy);
+    cblas_dgbmv(102, 111, m, n, kl, ku, alpha, a, lda, x, incx, beta, yb, incy);
     gettimeofday(&tvstop, NULL);
     diff_sec = tvstop.tv_sec - tvstart.tv_sec;
-    diff_usec;
     if (diff_sec > 0)
         diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
     else
