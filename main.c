@@ -41,10 +41,9 @@ void display_matrix(double *matrix, long size)
 }
 
 
-void improved_dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int lda,
-        double *x, int incx, double beta, double *y, int incy)
+void improved_dgbmv(long m, long n, long kl, long ku, double alpha, double *bA, long lda, double *x, long incx, double beta, double *y, long incy)
 {
-    int lenx, leny, kx, ky, iy,  kup1, i, jx, j, k;
+    long lenx, leny, kx, ky, iy,  kup1, i, jx, j, k, start;
     double temp;
     /* Sanity check */
     if ((m <= 0) || (n <= 0) || (kl < 0) || (ku < 0) || (lda <= 0) ||
@@ -69,7 +68,7 @@ void improved_dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int 
         double *yp = NULL;
         if (incy == 1) {
             if (beta == 0) {
-                *yp = Y(1);
+                yp = y;
                 for (i = 1; i <= leny; i++) {
                     *yp = 0;
                     yp++;
@@ -84,13 +83,13 @@ void improved_dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int 
         } else {
             iy = ky;
             if (beta == 0) {
-                *yp = Y(iy);
+                yp = y;
                 for (i = 1; i <= leny; i++) {
                     *yp = 0;
                     yp += incy;
                 }
             } else {
-                *yp = Y(iy);
+                yp = y;
                 for (i = 1; i <= leny; i++) {
                     *yp = beta * *yp;
                     yp += incy;
@@ -106,31 +105,46 @@ void improved_dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int 
     jx = kx;
 
     double *xp = NULL;
+    double *yp = NULL;
+    double *ap = NULL;
     if (incy == 1) {
-        *xp = X(jx);
+        xp = &X(jx);
+        ap = &bA[0];
         for (j = 1; j <= n; ++j) {
             if (*xp != 0) {
                 temp = alpha * *xp;
                 k = kup1 - j;
+
+                start = MAX(1, j - ku);
+                ap = &A(k + start, j);
+                yp = &Y(start);
+
                 for (i = MAX(1, j - ku); i <= MIN(m, j + kl); ++i) {
-                    Y(i) += temp * A(k + i, j);
+                    *yp += temp * *ap;
+                    yp++;
+                    ap++;
                 }
             }
             xp += incx;
         }
     } else {
-        *xp = X(jx);
+        xp = &X(jx);
+        ap = &bA[0];
         for (j = 1; j <= n; ++j) {
             if (*xp != 0) {
                 temp = alpha * *xp;
-                iy = ky;
                 k = kup1 - j;
+                iy = ky;
+                start = MAX(1, j - ku);
+                ap = &A(k + start, j);
+                yp = &Y(iy);
                 for (i = MAX(1, j - ku); i <= MIN(m, j + kl); ++i) {
-                    Y(iy) += temp * A(k + i, j);
-                    iy += incy;
+                    *yp += temp * *ap;
+                    yp += incy;
+                    ap++;
                 }
             }
-            *xp += incx;
+            xp += incx;
             if (j > ku)
                 ky += incy;
         }
@@ -139,10 +153,10 @@ void improved_dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int 
 }
 
 
-void dgbmv(int m, int n, int kl, int ku, double alpha, double *bA, int lda,
-        double *x, int incx, double beta, double *y, int incy)
+void dgbmv(long m, long n, long kl, long ku, double alpha, double *bA, long lda,
+        double *x, long incx, double beta, double *y, long incy)
 {
-    int lenx, leny, kx, ky, iy,  kup1, i, jx, j, k;
+    long lenx, leny, kx, ky, iy,  kup1, i, jx, j, k;
     double temp;
     /* Sanity check */
     if ((m <= 0) || (n <= 0) || (kl < 0) || (ku < 0) || (lda <= 0) ||
@@ -251,21 +265,42 @@ int main(void)
     long m = 10000000, n = 10000000, i, lda = 3, incx = 1, incy = 2;
     long kl = 0, ku = 0, alpha = 2, beta = 10, diff_sec, diff_usec;
     struct timeval tvstart, tvstop;
+
     double *a = malloc(lda * n * sizeof(double));
     double *x = malloc(n * incx * sizeof(double));
     double *y = malloc(m * incy * sizeof(double));
     double *yb = malloc(m * incy * sizeof(double));
+    double *yc = malloc(m * incy * sizeof(double));
     
-
+    
     get_random_values(a, lda * n);
     get_random_values(x, n * incx);
     get_random_values(y, m * incy);
-    for (i = 0; i < m * incy; i++)
+    for (i = 0; i < m * incy; i++) {
         yb[i] = a[i];
-
+        yc[i] = a[i];
+    }
     printf("----Start attempt for my function----\n");
     gettimeofday(&tvstart, NULL);
     dgbmv(m, n, kl, ku, alpha, a, lda, x, incx, beta, y, incy);
+    gettimeofday(&tvstop, NULL);
+
+    diff_sec = tvstop.tv_sec - tvstart.tv_sec;
+    if (diff_sec > 0)
+        diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
+    else
+        diff_usec = tvstop.tv_usec - tvstart.tv_usec;
+
+    printf("Diferenta in secunde %ld\n", diff_sec);
+    printf("Diferenta in usecunde %ld\n", diff_usec);
+    printf("Durata in milisecunde %ld\n", diff_sec * 1000 + diff_usec / 1000);
+    printf("------------\n");
+
+
+
+    printf("----Start attempt for improved function----\n");
+    gettimeofday(&tvstart, NULL);
+    improved_dgbmv(m, n, kl, ku, alpha, a, lda, x, incx, beta, yc, incy);
     gettimeofday(&tvstop, NULL);
 
     diff_sec = tvstop.tv_sec - tvstart.tv_sec;
@@ -281,8 +316,9 @@ int main(void)
 
 
 
+
     gettimeofday(&tvstart, NULL);
-    cblas_dgbmv(102, 111, m, n, kl, ku, alpha, a, lda, x, incx, beta, yb, incy);
+    //cblas_dgbmv(102, 111, m, n, kl, ku, alpha, a, lda, x, incx, beta, yb, incy);
     gettimeofday(&tvstop, NULL);
     diff_sec = tvstop.tv_sec - tvstart.tv_sec;
     if (diff_sec > 0)
@@ -297,10 +333,14 @@ int main(void)
 
     /* Afisare vector final y 
     printf("\nContinut vector y:\n");
-    for (i = 0; i < incy * m; i++)
-        printf("%lf, ", y[i]);
+    for (i = 0; i < incy * 5; i++)
+        printf("%lf, ", yy[i]);
     printf("\n");
     */
     free(a);
+    free(x);
+    free(y);
+    free(yb);
+    free(yc);
     return 0;
 }
