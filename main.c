@@ -249,7 +249,7 @@ int check_equal(double *a, long size_a, double *b, long size_b) {
     return 1;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
     /*
     int m = 5, n = 4, i, lda = 8, incx = 1, incy = 2;
@@ -261,82 +261,72 @@ int main(void)
     double x[4] = {1, 2, 3, 4};
     double y[10] = {1, 0, 2, 0, 3, 0, 4, 0, 5, 0};
     */
+	if (argc < 1)
+		printf("./main flags(0 sau 1)\n");
 
-    long m = 10000000, n = 10000000, i, lda = 3, incx = 1, incy = 2;
+
+    long m = 300000000, n = 300000000, i, lda = 1, incx = 1, incy = 2;
     long kl = 0, ku = 0, alpha = 2, beta = 10, diff_sec, diff_usec;
+    int flags = atoi(argv[1]);
     struct timeval tvstart, tvstop;
+    long k = 0;
+    double *a, *x, *y, *yb, *yc;
 
-    double *a = malloc(lda * n * sizeof(double));
-    double *x = malloc(n * incx * sizeof(double));
-    double *y = malloc(m * incy * sizeof(double));
-    double *yb = malloc(m * incy * sizeof(double));
-    double *yc = malloc(m * incy * sizeof(double));
-    
-    
+    a = malloc(lda * n * sizeof(double));
+    x = malloc(n * incx * sizeof(double));
+    y = malloc(m * incy * sizeof(double));
+    yb = malloc(m * incy * sizeof(double));
+    yc = malloc(m * incy * sizeof(double));
+
+
     get_random_values(a, lda * n);
     get_random_values(x, n * incx);
     get_random_values(y, m * incy);
+
     for (i = 0; i < m * incy; i++) {
-        yb[i] = a[i];
-        yc[i] = a[i];
+	    yb[i] = a[i];
+	    yc[i] = a[i];
     }
-    printf("----Start attempt for my function----\n");
+
     gettimeofday(&tvstart, NULL);
     dgbmv(m, n, kl, ku, alpha, a, lda, x, incx, beta, y, incy);
     gettimeofday(&tvstop, NULL);
 
     diff_sec = tvstop.tv_sec - tvstart.tv_sec;
     if (diff_sec > 0)
-        diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
+	    diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
     else
-        diff_usec = tvstop.tv_usec - tvstart.tv_usec;
+	    diff_usec = tvstop.tv_usec - tvstart.tv_usec;
 
-    printf("Diferenta in secunde %ld\n", diff_sec);
-    printf("Diferenta in usecunde %ld\n", diff_usec);
-    printf("Durata in milisecunde %ld\n", diff_sec * 1000 + diff_usec / 1000);
-    printf("------------\n");
+    printf("%ld %ld\n", lda * n, diff_sec * 1000 + diff_usec / 1000);
 
 
+    if (flags == 0) {
+	    gettimeofday(&tvstart, NULL);
+	    improved_dgbmv(m, n, kl, ku, alpha, a, lda, x, incx, beta, yc, incy);
+	    gettimeofday(&tvstop, NULL);
 
-    printf("----Start attempt for improved function----\n");
-    gettimeofday(&tvstart, NULL);
-    improved_dgbmv(m, n, kl, ku, alpha, a, lda, x, incx, beta, yc, incy);
-    gettimeofday(&tvstop, NULL);
+	    diff_sec = tvstop.tv_sec - tvstart.tv_sec;
+	    if (diff_sec > 0)
+		    diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
+	    else
+		    diff_usec = tvstop.tv_usec - tvstart.tv_usec;
 
-    diff_sec = tvstop.tv_sec - tvstart.tv_sec;
-    if (diff_sec > 0)
-        diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
-    else
-        diff_usec = tvstop.tv_usec - tvstart.tv_usec;
-
-    printf("Diferenta in secunde %ld\n", diff_sec);
-    printf("Diferenta in usecunde %ld\n", diff_usec);
-    printf("Durata in milisecunde %ld\n", diff_sec * 1000 + diff_usec / 1000);
-    printf("----end of attempt, start BLAS----\n");
+	    printf("%ld %ld\n", lda * n, diff_sec * 1000 + diff_usec / 1000);
 
 
+	    gettimeofday(&tvstart, NULL);
+	    cblas_dgbmv(102, 111, m, n, kl, ku, alpha, a, lda, x, incx, beta, yb, incy);
+	    gettimeofday(&tvstop, NULL);
+	    diff_sec = tvstop.tv_sec - tvstart.tv_sec;
+	    if (diff_sec > 0)
+		    diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
+	    else
+		    diff_usec = tvstop.tv_usec - tvstart.tv_usec;
+	    printf("%ld %ld\n", lda * n, diff_sec * 1000 + diff_usec / 1000);
+    }
 
 
-    gettimeofday(&tvstart, NULL);
-    //cblas_dgbmv(102, 111, m, n, kl, ku, alpha, a, lda, x, incx, beta, yb, incy);
-    gettimeofday(&tvstop, NULL);
-    diff_sec = tvstop.tv_sec - tvstart.tv_sec;
-    if (diff_sec > 0)
-        diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
-    else
-        diff_usec = tvstop.tv_usec - tvstart.tv_usec;
-    printf("Diferenta in secunde %ld\n", diff_sec);
-    printf("Diferenta in usecunde %ld\n", diff_usec);
-    printf("Durata in milisecunde %ld\n", diff_sec * 1000 + diff_usec / 1000);
-    printf("----Apel BLAS dgbmv----\n");
-
-
-    /* Afisare vector final y 
-    printf("\nContinut vector y:\n");
-    for (i = 0; i < incy * 5; i++)
-        printf("%lf, ", yy[i]);
-    printf("\n");
-    */
     free(a);
     free(x);
     free(y);
