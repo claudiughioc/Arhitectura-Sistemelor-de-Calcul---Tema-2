@@ -1,0 +1,13 @@
+GHIOC CONSTANTIN CLAUDIU 331CB
+
+
+            TEMA 2 ASC
+            IMPLEMENTAREA OPERATIEI DGBMV DIN BLAS
+
+1.  ENUNT
+    Se cere implementare operatiei dgbmv din BLAS intr-un program realizat in limbajul C. Operatia realizeaza produsul general intre o matrice si un vector pentru numere in virgula mobila, dubla precizie. mai precis operatia implementeaza:
+    y := alpha * A * x + beta * y
+
+2.  IMPLEMENTARE
+    Pentru varianta simpla a functiei dgbmv am urmat codul din Blas in Fortran al acestei functii si l-am transpus in C. Am scris astfel functia dgbmv care primeste aproape toti parametrii pe care ii primeste si cblas_dgbmv, cu exceptia primilor doi.
+
