@@ -50,4 +50,4 @@ lina 4 reprezinta output (timpul de executie in milisecunde) pentru varianta cu 
 
 
 5.  CONTINUT ARHIVA
-    Arhiva tema2_Constantin_Ghioc_331CB.zip contine fisierul sursa main.c, Makefile, run.sh, exec_script.sh, scripturile de desenare grafice (deseneaza_grafice.sh si deseneaza_grafice_arhiva.sh) si doua directoare: data ( care contine un script de parsare si 3 scripturi pentru desenare grafice cu gnuplot) si arhiva (cu trei fisiere de iesire per arhitectura obtinute anterior).
+    Arhiva .... contine fisierul sursa main.c, Makefile, run.sh, exec_script.sh, scripturile de desenare grafice (deseneaza_grafice.sh si deseneaza_grafice_arhiva.sh) si doua directoare: data ( care contine un script de parsare si 3 scripturi pentru desenare grafice cu gnuplot) si arhiva (cu trei fisiere de iesire per arhitectura obtinute anterior).
