@@ -298,7 +298,7 @@ int main(int argc, char **argv)
     else
 	    diff_usec = tvstop.tv_usec - tvstart.tv_usec;
 
-    printf("%ld %ld\n", lda * n, diff_sec * 1000 + diff_usec / 1000);
+    printf("%ld\n", diff_sec * 1000 + diff_usec / 1000);
 
 
     if (flags == 0) {
@@ -312,7 +312,7 @@ int main(int argc, char **argv)
 	    else
 		    diff_usec = tvstop.tv_usec - tvstart.tv_usec;
 
-	    printf("%ld %ld\n", lda * n, diff_sec * 1000 + diff_usec / 1000);
+	    printf("%ld\n", diff_sec * 1000 + diff_usec / 1000);
 
 
 	    gettimeofday(&tvstart, NULL);
@@ -323,7 +323,7 @@ int main(int argc, char **argv)
 		    diff_usec = tvstop.tv_usec + 1000000 - tvstart.tv_usec;
 	    else
 		    diff_usec = tvstop.tv_usec - tvstart.tv_usec;
-	    printf("%ld %ld\n", lda * n, diff_sec * 1000 + diff_usec / 1000);
+	    printf("%ld\n", diff_sec * 1000 + diff_usec / 1000);
     }
 
 
